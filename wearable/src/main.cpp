@@ -1,106 +1,84 @@
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include <Stepper.h>
 
-Adafruit_MPU6050 mpu;
-Adafruit_BME280 bme;
-Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire);
+// Define stepper motor control pins and steps per revolution
+#define MOTOR_STEPS 2048
+Stepper stepper(MOTOR_STEPS, pin1, pin2, pin3, pin4);
 
+// LED pins
+int ledGreen = 5;
+int ledYellow = 6;
+int ledRed = 7;
 
+// Moving average filter parameters
+const int numReadings = 10; // Number of readings for the moving average
+float readings[numReadings]; // the readings from the analog input
+int readIndex = 0; // the index of the current reading
+float total = 0; // the running total
+float average = 0; // the average
 
 void setup() {
-  Serial.begin(115200);
-  // while (!Serial);
-  Serial.println("MPU6050 OLED demo");
+  Serial.begin(9600);
+  // Initialize LEDs as outputs
+  pinMode(ledGreen, OUTPUT);
+  pinMode(ledYellow, OUTPUT);
+  pinMode(ledRed, OUTPUT);
+  
+  // Initialize stepper motor
+  stepper.setSpeed(10); // Set a suitable speed
 
-  if (!mpu.begin()) {
-    Serial.println("Sensor init failed");
-    while (1)
-      yield();
+  // Initialize all the readings to 0
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
   }
-  bool status;
-  // default settings
-  // (you can also pass in a Wire library object like &Wire2)
-  status = bme.begin(0x76);  
-  if (!status) {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    while (1);
-  }
-  Serial.println("Found a MPU-6050 sensor");
+}
 
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ; // Don't proceed, loop forever
-  }
-  display.display();
-  delay(500); // Pause for 2 seconds
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setRotation(0);
-  Serial.println("Setup done");
-
-  pinMode(20, OUTPUT);
+// Placeholder function to receive UV index data
+float getUVIndex() {
+  // Implementation depends on your communication setup
 }
 
 void loop() {
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
+  // subtract the last reading:
+  total = total - readings[readIndex];
+  // read from the sensor:
+  readings[readIndex] = getUVIndex();
+  // add the reading to the total:
+  total = total + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex = readIndex + 1;
 
-  display.clearDisplay();
-  display.setCursor(0, 0);
-
-  Serial.print("Accelerometer ");
-  Serial.print("X: ");
-  Serial.print(a.acceleration.x, 1);
-  Serial.print(" m/s^2, ");
-  Serial.print("Y: ");
-  Serial.print(a.acceleration.y, 1);
-  Serial.print(" m/s^2, ");
-  Serial.print("Z: ");
-  Serial.print(a.acceleration.z, 1);
-  Serial.println(" m/s^2");
-
-  display.println("Accelerometer - m/s^2");
-  display.print(a.acceleration.x, 1);
-  display.print(", ");
-  display.print(a.acceleration.y, 1);
-  display.print(", ");
-  display.print(a.acceleration.z, 1);
-  display.println("");
-
-  Serial.print("Gyroscope ");
-  Serial.print("X: ");
-  Serial.print(g.gyro.x, 1);
-  Serial.print(" rps, ");
-  Serial.print("Y: ");
-  Serial.print(g.gyro.y, 1);
-  Serial.print(" rps, ");
-  Serial.print("Z: ");
-  Serial.print(g.gyro.z, 1);
-  Serial.println(" rps");
-
-  display.println("Gyroscope - rps");
-  display.print(g.gyro.x, 1);
-  display.print(", ");
-  display.print(g.gyro.y, 1);
-  display.print(", ");
-  display.print(g.gyro.z, 1);
-  display.println("");
-  display.print("Temperature: "); display.print(bme.readTemperature()); display.println(" *C");
-  display.print("Pressure: "); display.print(bme.readPressure() / 100.0F); display.println(" hPa");
-  display.print("Humidity: "); display.print(bme.readHumidity()); display.println(" %");
-  
-  float currentTemperature = bme.readTemperature();
-  if(currentTemperature <= 20.0 || currentTemperature >= 27.0) {
-    digitalWrite(20, HIGH); // If the temperature is below 18°C or above 30°C, turn on the vibration motor
-  } else {
-    digitalWrite(20, LOW); // Otherwise, turn off the vibration motor
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
   }
 
-  Serial.println("looped");
-  display.display();
-  delay(100);
+  // calculate the average:
+  average = total / numReadings;
+
+  // Determine the UV level and activate the corresponding LED
+  if(average < 3) {
+    digitalWrite(ledGreen, HIGH);
+    digitalWrite(ledYellow, LOW);
+    digitalWrite(ledRed, LOW);
+  } else if(average >= 3 && average < 6) {
+    digitalWrite(ledGreen, LOW);
+    digitalWrite(ledYellow, HIGH);
+    digitalWrite(ledRed, LOW);
+  } else {
+    digitalWrite(ledGreen, LOW);
+    digitalWrite(ledYellow, LOW);
+    digitalWrite(ledRed, HIGH);
+  }
+
+  // Move the stepper motor according to the averaged UV index
+  int steps = calculateStepsForUVIndex(average);
+  stepper.step(steps);
+
+  delay(2000); // Delay before next update
+}
+
+// Placeholder function to calculate steps for the stepper motor
+int calculateStepsForUVIndex(float UVIndex) {
+  // Implement the calculation based on your gauge's scale and stepper motor's characteristics
 }
