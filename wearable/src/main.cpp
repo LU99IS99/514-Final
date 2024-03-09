@@ -1,54 +1,50 @@
 #include <Stepper.h>
+#include "BluetoothSerial.h"
 
-#define MOTOR_STEPS
-Stepper stepper(MOTOR_STEPS, pin1, pin2, pin3, pin4);
+BluetoothSerial SerialBT;
 
+// Stepper motor setup
+#define MOTOR_STEPS 2048
+#define MOTOR_SPEED 15
+Stepper stepper(MOTOR_STEPS, motorPin1, motorPin2, motorPin3, motorPin4);
+
+// LED pins
 int ledGreen = 5;
 int ledYellow = 6;
 int ledRed = 7;
 
-// Moving average filter parameters
-const int numReadings = 10; 
-float readings[numReadings]; 
-int readIndex = 0; 
-float total = 0; 
-float average = 0; 
-
 void setup() {
-  Serial.begin(9600);
-  // Initialize LEDs as outputs
+  Serial.begin(115200);
+  SerialBT.begin("UV Display"); 
+  
+  // Initialize LEDs
   pinMode(ledGreen, OUTPUT);
   pinMode(ledYellow, OUTPUT);
   pinMode(ledRed, OUTPUT);
   
-  stepper.setSpeed(10); 
-
-  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    readings[thisReading] = 0;
-  }
-}
-
-float getUVIndex() {
-  // Implementation depends on your communication setup
+  // Initialize stepper motor
+  stepper.setSpeed(MOTOR_SPEED);
 }
 
 void loop() {
-  total = total - readings[readIndex];
-  readings[readIndex] = getUVIndex();
-  total = total + readings[readIndex];
-  readIndex = readIndex + 1;
-
-  if (readIndex >= numReadings) {
-    readIndex = 0;
+  if (SerialBT.available()) {
+    float UVindex = SerialBT.parseFloat();
+    if (SerialBT.read() == '\n') {
+      updateDisplay(UVindex);
+    }
   }
+}
 
-  average = total / numReadings;
-
-  if(average < 3) {
+void updateDisplay(float UVindex) {
+  int angle = getAngleForUVLevel(UVindex); // Get angle for UV level
+  stepper.step(angle); // Rotate stepper motor to the angle
+  
+  // Update LEDs based on UV level
+  if(UVindex < 3) {
     digitalWrite(ledGreen, HIGH);
     digitalWrite(ledYellow, LOW);
     digitalWrite(ledRed, LOW);
-  } else if(average >= 3 && average < 6) {
+  } else if(UVindex >= 3 && UVindex <= 6) {
     digitalWrite(ledGreen, LOW);
     digitalWrite(ledYellow, HIGH);
     digitalWrite(ledRed, LOW);
@@ -57,15 +53,10 @@ void loop() {
     digitalWrite(ledYellow, LOW);
     digitalWrite(ledRed, HIGH);
   }
-
-  // Move the stepper motor according to the averaged UV index
-  int steps = calculateStepsForUVIndex(average);
-  stepper.step(steps);
-
-  delay(60000); // Delay before next update
 }
 
-// Placeholder function to calculate steps for the stepper motor
-int calculateStepsForUVIndex(float UVIndex) {
- 
+int getAngleForUVLevel(float UVindex) {
+  int stepPerRevolution = MOTOR_STEPS / 8; 
+  int angleStep = stepPerRevolution * ((int)UVindex - 1);
+  return angleStep % MOTOR_STEPS; 
 }
