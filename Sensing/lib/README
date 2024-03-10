@@ -9,17 +9,17 @@ For example, see a structure of the following two libraries `Foo` and `Bar`:
 
 |--lib
 |  |
-|  |--Bar
+|  |--Wire
 |  |  |--docs
 |  |  |--examples
 |  |  |--src
-|  |     |- Bar.c
-|  |     |- Bar.h
+|  |     |- Wire.c
+|  |     |- Wire.h
 |  |  |- library.json (optional, custom build options, etc) https://docs.platformio.org/page/librarymanager/config.html
 |  |
-|  |--Foo
-|  |  |- Foo.c
-|  |  |- Foo.h
+|  |--Adafruit_SI1145
+|  |  |- Adafruit_SI1145.c
+|  |  |- Adafruit_SI1145.h
 |  |
 |  |- README --> THIS FILE
 |
@@ -29,8 +29,9 @@ For example, see a structure of the following two libraries `Foo` and `Bar`:
 
 and a contents of `src/main.c`:
 ```
-#include <Foo.h>
-#include <Bar.h>
+#include <Wire.h>
+#include "Adafruit_SI1145.h"
+#include "BluetoothSerial.h"
 
 int main (void)
 {
