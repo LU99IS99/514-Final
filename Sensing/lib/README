@@ -21,6 +21,10 @@ For example, see a structure of the following two libraries `Foo` and `Bar`:
 |  |  |- Adafruit_SI1145.c
 |  |  |- Adafruit_SI1145.h
 |  |
+|  |--BluetoothSerial
+|  |  |- BluetoothSerial.c
+|  |  |- BluetoothSerial.h
+
 |  |- README --> THIS FILE
 |
 |- platformio.ini
